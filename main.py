@@ -1,3 +1,4 @@
+import os
 from random import Random
 from typing import Dict, List, Tuple
 from os import path
@@ -72,9 +73,6 @@ class Food(BaseObject):
     def draw_food(self, foods: List[pg.rect.Rect]) -> None:
         for food in foods:
             pg.draw.rect(self.main.screen, self.main.RED, food)
-
-    def get_random_pos(self) -> Tuple[int, int]:
-        return BaseObject.get_random_pos(self)
         
 
 class SnakeGame:
@@ -93,7 +91,6 @@ class SnakeGame:
         self.game_over_font = pg.font.SysFont(None, 40)
 
         # Variables to control collision behavior
-        
         self.no_collision_walls: bool = False
         self.no_collision_food: bool = False
 
@@ -290,23 +287,25 @@ class SnakeGame:
     def ask_save_best_score(self, best_score: int) -> bool:
         pg.quit()
 
-        if best_score > self.get_best_score() and self.cheat_mode:
+        best_score_value = self.get_best_score()
+        if best_score > best_score_value and self.cheat_mode:
             input("Best scores will not be saved in cheat mode. Press enter to continue.\n")
             return False
-        if best_score > self.get_best_score():
-            save = input(f"\nNew Best score: {best_score} - Save to a file? (y/n): ")
+        if best_score > best_score_value:
+            save = input(f"\nNew Best score: {best_score} - Save to a file? (y/n): ").lower()
             return save == 'y'
 
     def save_best_score(self, best_score: int) -> None:
         if self.ask_save_best_score(best_score):
             with open('best_score.txt', 'w') as f:
-                f.write(f"Best scores will carry over to next session!\nBut if you delete this file you will lose your best score and will be 0 next time.\n\nYour best score is: {best_score}")
+                f.write(f"Best scores will carry over to next session!\n"
+                        f"But if you delete this file you will lose your best score and will be 0 next time.\n\nYour best score is: {best_score}")
 
     def get_best_score(self) -> int:
-        try:
+        if os.path.exists('best_score.txt'):
             with open('best_score.txt') as f:
-                return int(f.read().split()[-1])
-        except FileNotFoundError:
+                return int(f.read().rsplit(maxsplit=1)[1])
+        else:
             return 0
 
     def handle_events(self, snake_dir: Tuple[int, int]) -> Tuple[int, Tuple[int, int]]:
