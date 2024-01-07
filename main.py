@@ -119,7 +119,7 @@ class SnakeGame:
         pg.display.set_caption('Snake Game')
         self.clock: pg.time.Clock = pg.time.Clock()
         self.time: int = 0
-        self.time_step: int = 40
+        self.time_step: int = 100
         
         self.snake = Snake(self)
         self.foods = Food(self)
@@ -165,11 +165,11 @@ class SnakeGame:
                 self.no_collision_food: bool = config[28] == 'yes'
 
 
-                if (self.time_step == 40 and self.length_inc == 1 and self.length == 1 and self.no_collision_walls is False
+                if (self.time_step == 100 and self.length_inc == 1 and self.length == 1 and self.no_collision_walls is False
                         and self.no_collision_food is False and self.score_inc == 1):
                     print("Note: Cheat Mode will be enabled if any of the values in config.txt are changed.")
 
-                if (self.time_step != 40 or self.length_inc != 1 or self.length != 1 or self.no_collision_walls
+                if (self.time_step != 100 or self.length_inc != 1 or self.length != 1 or self.no_collision_walls
                         or self.no_collision_food or self.score_inc != 1):
                     self.cheat_mode: bool = True
                     print("Cheat Mode enabled. Best Scores will not be saved.")
