@@ -16,13 +16,13 @@ It's still in its beta stages so it may contain bugs and may not work as you'd e
 
 ## Game Controls
 
-WASD or Arrow keys: Move snake
+WASD or Arrow keys: Move Snake
 
 Space: Pause Game
 
-Escape: Quit game
+Escape: Quit Game
 
-R: Restart game
+R: Restart Game
 
 ## For Developers
 
