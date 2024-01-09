@@ -2,8 +2,9 @@
 
 ## Game Description
 
-This is a remake of the classic snake game. It was made for learning pygame (or to have fun.) It was created by [Fesuoy](https://github.com/fesuoy1), It's still in its beta
-stages so it may contain bugs and may not work as intended.
+This is a remake of the classic snake game. It was made for learning pygame (or to have fun.)
+
+It's still in its beta stages so it may contain bugs and may not work as you'd expect.
 
 ## How To Play
 
@@ -17,10 +18,12 @@ stages so it may contain bugs and may not work as intended.
 
 WASD or Arrow keys: Move snake
 
+Space: Pause Game
+
 Escape: Quit game
 
 R: Restart game
 
 ## For Developers
 
-This game is open source So you can modify it or add features to it. You can submit a pull request [here.](https://github.com/fesuoy1/snake-game-remake/pull/new)
+This game is open source! You can modify it or add features to it. You can submit a pull request [here.](https://github.com/fesuoy1/snake-game-remake/pull/new)
