@@ -49,7 +49,7 @@ class Snake(BaseObject):
 class Food(BaseObject):
     def __init__(self, main) -> None:
         super().__init__(main)
-        self.foods = self.initialize_food(self.RNG.randint(4, 15))
+        self.foods: List[pg.rect.Rect] = self.initialize_food(5)
 
     def initialize_food(self, spawnAmount: int, level: int = 1) -> List[pg.rect.Rect]:
         valid_positions = self.get_valid_positions()
@@ -73,6 +73,10 @@ class Food(BaseObject):
     def draw_food(self, foods: List[pg.rect.Rect]) -> None:
         for food in foods:
             pg.draw.rect(self.main.screen, self.main.RED, food)
+
+            # Draw the food in blue if there is only one left
+            if len(foods) == 1:
+                pg.draw.rect(self.main.screen, (0, 0, 255), food)
         
 
 class SnakeGame:
@@ -89,6 +93,7 @@ class SnakeGame:
         
         self.score_font: pg.font.Font = pg.font.SysFont(None, 30)
         self.game_over_font = pg.font.SysFont(None, 40)
+        self.paused_font = pg.font.SysFont(None, 60)
 
         # Variables to control collision behavior
         self.no_collision_walls: bool = False
@@ -123,13 +128,18 @@ class SnakeGame:
         
         self.snake = Snake(self)
         self.foods = Food(self)
+
+        self.remaining_foods: int = 5
+        self.foods_eaten: int = 0
         
         # Make the cursor invisible
         pg.mouse.set_visible(False)
         pg.event.set_grab(True)
 
         self.last_move_time = 0
-        self.move_delay = 60  # milliseconds
+        self.move_delay = 80  # milliseconds
+        
+        self.paused = False
 
         # Dictionary to map keyboard keys to snake directions
         self.keys: Dict[int, Tuple[int, int]] = {pg.K_w: (0, -self.TILE_SIZE),
@@ -176,34 +186,38 @@ class SnakeGame:
                     print("To disable cheat mode, change the values in config.txt back to default or delete the config.txt file.")
         except Exception as e:
             input(f"Error with config file: {e}\nPress enter to continue.\n")
-        print(f"Snake Speed: {self.time_step}\nSnake Length Increment: {self.length_inc}\n"
-                       f"Score Increment: {self.score_inc}\nSnakes Starting Length: {self.length}\n"
-                       f"Disable Collision With Wall: {self.no_collision_walls}\n"
-                       f"Disable Collision With Self: {self.fix_collision_itself}\n"
-                       f"Disable Collision With Food: {self.no_collision_food}")
+        #print(f"Snake Speed: {self.time_step}\nSnake Length Increment: {self.length_inc}\n"
+        #               f"Score Increment: {self.score_inc}\nSnakes Starting Length: {self.length}\n"
+        #               f"Disable Collision With Wall: {self.no_collision_walls}\n"
+        #               f"Fix Collision With Self: {self.fix_collision_itself}\n"
+        #               f"Disable Collision With Food: {self.no_collision_food}")
 
     def run(self):
         while True:
             self.snake_dir = self.handle_events(self.snake_dir)
             self.draw_objects(self.foods.foods)
-            self.snake._snake, self.foods.foods, self.length, self.snake_dir, self.score = self.handle_collision(self.snake._snake, self.foods.foods, self.length, self.snake_dir, self.score)
-
-            if self.no_collision_food is False:
-                self.snake._snake, self.foods.foods, self.length, self.score, self.best_score = self.handle_food_collision(self.snake._snake, self.foods.foods, self.length, self.score, self.best_score)
-                self.foods.check_food_position()
-                self.foods.foods = self.handle_food_in_snake_collision(self.foods.foods, self.snake.segments)
-
-            # if foods list is empty, spawn more
-            if len(self.foods.foods) == 0:
-                self.foods.foods = self.foods.initialize_food(self.RNG.randint(4, 15), self.level)
-                self.level += 1
-                self.food_spawn_sound.play()
-
-            time_now = pg.time.get_ticks()
-            if time_now - self.time >= self.time_step:
-                self.time = time_now
-                self.snake.move(self.snake_dir)
             self.display_scores(self.score, self.best_score, self.foods.foods)
+
+            if self.paused is False:
+                self.snake._snake, self.foods.foods, self.length, self.snake_dir, self.score = self.handle_collision(self.snake._snake, self.foods.foods, self.length, self.snake_dir, self.score)
+
+                if self.no_collision_food is False:
+                    self.snake._snake, self.foods.foods, self.length, self.score, self.best_score = self.handle_food_collision(self.snake._snake, self.foods.foods, self.length, self.score, self.best_score)
+                    self.foods.check_food_position()
+                    self.foods.foods = self.handle_food_in_snake_collision(self.foods.foods, self.snake.segments)
+
+                # if foods list is empty, spawn more
+                if len(self.foods.foods) == 0:
+                    self.foods.foods = self.foods.initialize_food(self.RNG.randint(4, 15), self.level)
+                    self.level += 1
+                    self.remaining_foods = len(self.foods.foods)
+                    self.food_spawn_sound.play()
+
+                time_now = pg.time.get_ticks()
+                if time_now - self.time >= self.time_step:
+                    self.time = time_now
+                    self.snake.move(self.snake_dir)
+            
             pg.display.flip()
             self.clock.tick(60)
 
@@ -216,7 +230,10 @@ class SnakeGame:
     def game_over_screen(self):
         game_over_text = self.game_over_font.render("Game Over! Press R to Restart or ESC to Quit", True, 'cyan')
         game_over_rect = game_over_text.get_rect(center=(self.width // 2, self.height // 2))
+        foods_eaten_text = self.game_over_font.render(f"Total Food Eaten: {self.foods_eaten}", True, 'cyan')
+        foods_eaten_rect = foods_eaten_text.get_rect(center=(self.width // 2, self.height // 2 + 50))
         self.screen.blit(game_over_text, game_over_rect)
+        self.screen.blit(foods_eaten_text, foods_eaten_rect)
         pg.display.flip()
 
         while True:
@@ -256,6 +273,7 @@ class SnakeGame:
                     foods.remove(food)
                     length += self.length_inc
                     score += self.score_inc
+                    self.foods_eaten += 1
                     self.eat_sound.play()
                     if score >= best_score:
                         best_score = score
@@ -281,8 +299,12 @@ class SnakeGame:
             self.screen.blit(cheat_text, (10, best_score_text.get_height() + 94))
             self.screen.blit(level_text, (10, cheat_text.get_height() + 40))
         self.screen.blit(level_text, (10, best_score_text.get_height() + 40))
-        remaining_foods_text = self.score_font.render(f"Remaining Foods: {len(foods)}", True, 'white')
+        remaining_foods_text = self.score_font.render(f"Remaining Foods: {len(foods)} / {self.remaining_foods}", True, 'white')
         self.screen.blit(remaining_foods_text, (10, level_text.get_height() + 65))
+
+        if self.paused:
+            paused_text = self.paused_font.render("Paused", True, 'white')
+            self.screen.blit(paused_text, (self.width // 2 - paused_text.get_width() // 2, self.height // 2 - paused_text.get_height() // 2))
 
     def ask_save_best_score(self, best_score: int) -> bool:
         pg.quit()
@@ -325,7 +347,13 @@ class SnakeGame:
                         food.center = self.snake.get_random_pos()
                     self.handle_collision(self.snake._snake, self.foods.foods, self.length, snake_dir, self.score, True)
 
+                if event.key == pg.K_SPACE:
+                    self.paused = not self.paused
+
                 if event.key in self.keys:
+                    if self.paused:
+                        continue
+                    
                     current_time = pg.time.get_ticks()
                     if current_time - self.last_move_time >= self.move_delay:
                         if snake_dir == (-self.keys[event.key][0], -self.keys[event.key][1]) and self.length > 1:
@@ -340,8 +368,8 @@ class SnakeGame:
             self.screen.fill(self.GRAY)
             self.foods.draw_food(foods)
             self.snake.draw_snake()
-        except Exception as e:
-            print(f"Error occurred during drawing: {e}")
+        except pg.error as e:
+            print(f"Error occurred during rendering: {e}")
 
 
 if __name__ == '__main__':
