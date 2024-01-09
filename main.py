@@ -346,7 +346,8 @@ class SnakeGame:
                     for food in self.foods.foods:
                         food.center = self.snake.get_random_pos()
                     self.handle_collision(self.snake._snake, self.foods.foods, self.length, snake_dir, self.score, True)
-
+                    self.remaining_foods = len(self.foods.foods)
+                    
                 if event.key == pg.K_SPACE:
                     self.paused = not self.paused
 
