@@ -1,83 +1,20 @@
-import os
 from random import Random
 from typing import Dict, List, Tuple
 from os import path
 from datetime import datetime
+from snake import Snake
+from food import Food
+from particle import ParticleSystem
+
 try:
     import pygame as pg
+    from pygame.math import Vector2
+    from pygame.font import SysFont
 except ModuleNotFoundError:
     input("Please install pygame. Run 'pip install pygame' in the terminal. Press enter to continue.\n")
 
 print("Note: You may experience some unknown bugs while playing the game. If you encounter any, please report it to the developer. Thanks!")
 
-class BaseObject:
-    def __init__(self, main) -> None:
-        self.main = main
-        self.RNG: Random = self.main.RNG
-        self.RANGE: Tuple[int, int, int, int] = self.main.RANGE
-        self.TILE_SIZE: int = self.main.TILE_SIZE
-
-    def get_random_pos(self) -> Tuple[int, int]:
-        x = self.RNG.randrange(self.RANGE[0], self.RANGE[1], self.TILE_SIZE)
-        y = self.RNG.randrange(self.RANGE[2], self.RANGE[3], self.TILE_SIZE)
-        return x, y
-
-class Snake(BaseObject):
-    def __init__(self, main) -> None:
-        super().__init__(main)
-        self._snake = pg.rect.Rect((0, 0, self.TILE_SIZE, self.TILE_SIZE))
-        self._snake.center = self.get_random_pos()
-        self.segments = [self._snake.copy()]
-
-    def move(self, snake_dir) -> None:
-        self._snake.move_ip(snake_dir)
-        self.segments.append(self._snake.copy())
-        self.segments = self.segments[-self.main.length:]
-
-    def draw_snake(self) -> None:
-        # Draw snake head
-        pg.draw.rect(self.main.screen, self.main.DARK_GREEN, self._snake)
-        # Draw snake segments
-        for segment in self.segments[0:-1]:
-            pg.draw.rect(self.main.screen, self.main.GREEN, segment)
-
-    @staticmethod
-    def copy_snake(snake: pg.rect.Rect) -> pg.rect.Rect:
-        return snake.copy()
-    
-
-class Food(BaseObject):
-    def __init__(self, main) -> None:
-        super().__init__(main)
-        self.foods: List[pg.rect.Rect] = self.initialize_food(5)
-
-    def initialize_food(self, spawnAmount: int, level: int = 1) -> List[pg.rect.Rect]:
-        valid_positions = self.get_valid_positions()
-        foods = [self.main.snake.copy_snake(self.main.snake._snake) for _ in range(spawnAmount * level)]
-        for food in foods:
-            food.center = self.RNG.choice(valid_positions)
-        return foods
-    
-    def get_valid_positions(self) -> List[Tuple[int, int]]:
-        if hasattr(self, "_valid_positions"):
-            return self._valid_positions
-        valid_positions = [(x, y) for x in range(self.RANGE[0], self.RANGE[1], self.TILE_SIZE) for y in range(self.RANGE[2], self.RANGE[3], self.TILE_SIZE)]
-        self._valid_positions = valid_positions
-        return valid_positions
-
-    def check_food_position(self) -> None:
-        for food in self.foods:
-            if food.left < self.RANGE[0] or food.right > self.RANGE[1] or food.top < self.RANGE[2] or food.bottom > self.RANGE[3]:
-                food.center = self.get_random_pos()
-
-    def draw_food(self, foods: List[pg.rect.Rect]) -> None:
-        for food in foods:
-            pg.draw.rect(self.main.screen, self.main.RED, food)
-
-            # Draw the food in blue if there is only one left
-            if len(foods) == 1:
-                pg.draw.rect(self.main.screen, (0, 0, 255), food)
-        
 
 class SnakeGame:
     def __init__(self) -> None:
@@ -90,10 +27,11 @@ class SnakeGame:
         self.DARK_GREEN: Tuple[int, int, int] = (0, 130, 0)
         self.GRAY = (10, 10, 10)
         self.RED = (255, 0, 0)
+        self.BLUE = (0, 0, 255)
         
-        self.score_font: pg.font.Font = pg.font.SysFont(None, 30)
-        self.game_over_font = pg.font.SysFont(None, 40)
-        self.paused_font = pg.font.SysFont(None, 60)
+        self.score_font: SysFont = SysFont(None, 30)
+        self.game_over_font: SysFont = SysFont(None, 40)
+        self.paused_font: SysFont = SysFont(None, 60)
 
         # Variables to control collision behavior
         self.no_collision_walls: bool = False
@@ -111,7 +49,7 @@ class SnakeGame:
         self.length_inc: int = 1
         self.level: int = 1
 
-        self.snake_dir: Tuple[int, int] = (0, 0)
+        self.snake_dir: Vector2 = Vector2(0, 0)
         self.score: int = 0
         self.best_score: int = self.get_best_score()
         self.score_inc: int = 1
@@ -128,6 +66,7 @@ class SnakeGame:
         
         self.snake = Snake(self)
         self.foods = Food(self)
+        self.particles = ParticleSystem(self)
 
         self.remaining_foods: int = 5
         self.foods_eaten: int = 0
@@ -142,16 +81,16 @@ class SnakeGame:
         self.paused = False
 
         # Dictionary to map keyboard keys to snake directions
-        self.keys: Dict[int, Tuple[int, int]] = {pg.K_w: (0, -self.TILE_SIZE),
-                                                 pg.K_s: (0, self.TILE_SIZE),
-                                                 pg.K_a: (-self.TILE_SIZE, 0),
-                                                 pg.K_d: (self.TILE_SIZE, 0),
-                                                 pg.K_q: (-self.TILE_SIZE, -self.TILE_SIZE),
-                                                 pg.K_e: (self.TILE_SIZE, -self.TILE_SIZE),
-                                                 pg.K_UP: (0, -self.TILE_SIZE),
-                                                 pg.K_DOWN: (0, self.TILE_SIZE),
-                                                 pg.K_LEFT: (-self.TILE_SIZE, 0),
-                                                 pg.K_RIGHT: (self.TILE_SIZE, 0)}
+        self.keys: Dict[int, Vector2] = {pg.K_w: Vector2(0, -self.TILE_SIZE),
+                                                 pg.K_s: Vector2(0, self.TILE_SIZE),
+                                                 pg.K_a: Vector2(-self.TILE_SIZE, 0),
+                                                 pg.K_d: Vector2(self.TILE_SIZE, 0),
+                                                 pg.K_q: Vector2(-self.TILE_SIZE, -self.TILE_SIZE),
+                                                 pg.K_e: Vector2(self.TILE_SIZE, -self.TILE_SIZE),
+                                                 pg.K_UP: Vector2(0, -self.TILE_SIZE),
+                                                 pg.K_DOWN: Vector2(0, self.TILE_SIZE),
+                                                 pg.K_LEFT: Vector2(-self.TILE_SIZE, 0),
+                                                 pg.K_RIGHT: Vector2(self.TILE_SIZE, 0)}
         
         # Check if the config file exists, if not, create it with default values
         if path.exists('config.txt') is False:
@@ -243,6 +182,7 @@ class SnakeGame:
                     exit()
                 if event.type == pg.KEYDOWN:
                     if event.key == pg.K_r:
+                        self.foods_eaten = 0
                         return
                     if event.key == pg.K_ESCAPE:
                         self.save_best_score(self.best_score)
@@ -274,6 +214,12 @@ class SnakeGame:
                     length += self.length_inc
                     score += self.score_inc
                     self.foods_eaten += 1
+
+                    if len(self.foods.foods) < 1:
+                        self.particles.emit(food.center, self.BLUE)
+                    else:
+                        self.particles.emit(food.center, self.RED)
+
                     self.eat_sound.play()
                     if score >= best_score:
                         best_score = score
@@ -324,7 +270,7 @@ class SnakeGame:
                         f"But if you delete this file you will lose your best score and will be 0 next time.\n\nYour best score is: {best_score}")
 
     def get_best_score(self) -> int:
-        if os.path.exists('best_score.txt'):
+        if path.exists('best_score.txt'):
             with open('best_score.txt') as f:
                 return int(f.read().rsplit(maxsplit=1)[1])
         else:
@@ -369,6 +315,8 @@ class SnakeGame:
             self.screen.fill(self.GRAY)
             self.foods.draw_food(foods)
             self.snake.draw_snake()
+            self.particles.update()
+            self.particles.draw(self.screen)
         except pg.error as e:
             print(f"Error occurred during rendering: {e}")
 
