@@ -4,7 +4,7 @@
 
 This is a remake of the classic snake game. It was made for learning pygame (or to have fun.)
 
-This game is released since January 11 2024. 
+This game was released since January 11 2024. 
 
 There may be bugs or issues. If you find any, Please report them [here.](https://github.com/fesuoy1/snake-game-remake/issues/new)
 
