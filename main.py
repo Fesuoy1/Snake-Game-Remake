@@ -1,7 +1,6 @@
-from random import Random
+from random import Random, randint
 from typing import Dict, List, Tuple
 from os import path
-from datetime import datetime
 from snake import Snake
 from food import Food
 from particle import ParticleSystem
@@ -17,17 +16,17 @@ print("Note: You may experience some unknown bugs while playing the game. If you
 
 
 class SnakeGame:
-    def __init__(self) -> None:
+    def __init__(self, resolution=(800, 650)) -> None:
         pg.init()
-        self.width, self.height = 800, 650
+        self.width, self.height = resolution
         self.TILE_SIZE: int = 20
         self.RANGE: Tuple[int, int, int, int] = (0, self.width - self.TILE_SIZE, 0, self.height - self.TILE_SIZE)
-        self.RNG: Random = Random(datetime.now().microsecond)
+        self.RNG: Random = Random(randint(0, 1000000))
         self.GREEN: Tuple[int, int, int] = (0, 205, 0)
         self.DARK_GREEN: Tuple[int, int, int] = (0, 130, 0)
-        self.GRAY = (10, 10, 10)
         self.RED = (255, 0, 0)
         self.BLUE = (0, 0, 255)
+        self.BLACK = (0, 0, 0)
         
         self.score_font: SysFont = SysFont(None, 30)
         self.game_over_font: SysFont = SysFont(None, 40)
@@ -100,15 +99,19 @@ class SnakeGame:
                         "Fix Collision With Self: Yes\nDisable Collision With Food: No\n\nWarning: "
                         "Cheat Mode will be enabled if any of the values are changed.")
 
-        # Read the config file and update the variables accordingly
+        # Read the config file and update the variables
         try:
             print("Reading config file...")
             with open('config.txt') as f:
                 config: List[str] = f.read().lower().split()
+
                 self.time_step: int = int(config[2])
+
                 self.length_inc: int = int(config[6])
                 self.score_inc: int = int(config[9])
+
                 self.length: int = int(config[13])
+
                 self.no_collision_walls: bool = config[18] == 'yes'
                 self.fix_collision_itself: bool = config[23] == 'yes'
                 self.no_collision_food: bool = config[28] == 'yes'
@@ -147,7 +150,7 @@ class SnakeGame:
 
                 # if foods list is empty, spawn more
                 if len(self.foods.foods) == 0:
-                    self.foods.foods = self.foods.initialize_food(self.RNG.randint(4, 15), self.level)
+                    self.foods.foods = self.foods.spawn_food(self.RNG.randint(4, 15), self.level)
                     self.level += 1
                     self.remaining_foods = len(self.foods.foods)
                     self.food_spawn_sound.play()
@@ -194,7 +197,10 @@ class SnakeGame:
         snake_in_wall: bool = (snake.left < 0 or snake.right > self.width or snake.top < 0 or snake.bottom > self.height) and self.no_collision_walls is False
         snake_positions = set(segment.center for segment in self.snake.segments[:-1])
         if (snake_in_wall or snake.center in snake_positions) or force_restart or self.fix_collision_itself is False:
-            snake.center, foods = self.snake.get_random_pos(), self.foods.initialize_food(self.RNG.randint(4, 15), self.level)
+            valid_positions = self.snake.get_valid_positions()
+            self.snake.reset_pos()
+            foods = self.foods.spawn_food(5, self.level)
+            self.remaining_foods = len(foods)
             length, snake_dir = 1, (0, 0)
             score = 0
             self.level = 1
@@ -202,6 +208,7 @@ class SnakeGame:
             for food in foods:
                 if len(foods) > 15:
                     foods = foods[:15]
+                    self.remaining_foods = len(foods)
                 food.center = self.foods.get_random_pos()
         return snake, foods, length, snake_dir, score
 
@@ -215,13 +222,10 @@ class SnakeGame:
                     score += self.score_inc
                     self.foods_eaten += 1
 
-                    if len(self.foods.foods) < 1:
-                        self.particles.emit(food.center, self.BLUE)
-                    else:
-                        self.particles.emit(food.center, self.RED)
+                    self.particles.emit(food.center, self.BLUE if len(foods) < 1 else self.RED)
 
                     self.eat_sound.play()
-                    if score >= best_score:
+                    if score > best_score:
                         best_score = score
             return snake, foods, length, score, best_score
 
@@ -289,12 +293,14 @@ class SnakeGame:
 
                 if event.key == pg.K_r:
                     snake_dir = (0, 0)
+                    self.length = 1
+                    self.handle_collision(self.snake._snake, self.foods.foods, self.length, snake_dir, self.score, True)
+                    self.foods.foods = self.foods.spawn_food(5, self.level)
                     for food in self.foods.foods:
                         food.center = self.snake.get_random_pos()
-                    self.handle_collision(self.snake._snake, self.foods.foods, self.length, snake_dir, self.score, True)
                     self.remaining_foods = len(self.foods.foods)
                     
-                if event.key == pg.K_SPACE:
+                if event.key == pg.K_SPACE or event.key == pg.K_p:
                     self.paused = not self.paused
 
                 if event.key in self.keys:
@@ -312,7 +318,7 @@ class SnakeGame:
 
     def draw_objects(self, foods: List[pg.rect.Rect]) -> None:
         try:
-            self.screen.fill(self.GRAY)
+            self.screen.fill(self.BLACK)
             self.foods.draw_food(foods)
             self.snake.draw_snake()
             self.particles.update()
