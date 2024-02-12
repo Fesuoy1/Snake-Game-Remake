@@ -1,3 +1,5 @@
+⚠️This project has been archived since i've switched my focus to minecraft mods. You may still fork it but this will not be updated anymore. ⚠️
+
 # Snake Game Remake
 
 ## Game Description
